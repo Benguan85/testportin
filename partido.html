@@ -169,28 +169,24 @@
         <div class="card">
           <label>Create → Update (no FK) → Delete</label>
           <div class="muted">
-            Crea un partido (usa idTipoarticulo=1 e idClub=1 por defecto), lo
-            actualiza (campos no FK) y luego lo borra.
+            Crea un partido (POST inicial envía campos null/0 para obtener id),
+            luego actualiza con los valores proporcionados y finalmente lo borra.
           </div>
           <div style="margin-top: 8px" class="row">
             <input
-              id="createDescripcion"
-              placeholder="Descripción inicial"
-              value="Prueba API"
+              id="createNombreRival"
+              placeholder="Nombre del rival"
+              value="Rival prueba"
             />
           </div>
           <div style="margin-top: 8px" class="row">
-            <input id="createPrecio" type="number" step="0.01" value="10.00" />
-            <input
-              id="createDescuento"
-              type="number"
-              step="0.01"
-              value="0.00"
-            />
+            <input id="createIdEquipo" type="number" value="1" />
+            <label style="display:flex;align-items:center;gap:6px;">
+              <input id="createLocal" type="checkbox" checked /> Local
+            </label>
           </div>
           <div style="margin-top: 8px" class="row">
-            <input id="createIdTipo" type="number" value="1" />
-            <input id="createIdClub" type="number" value="1" />
+            <input id="createResultado" placeholder="Resultado (ej. 1-0)" value="0-0" />
           </div>
           <div style="margin-top: 8px">
             <button id="btnCreateUpdateDelete">
@@ -207,9 +203,7 @@
 
       <p class="muted" style="margin-top: 12px">
         Notas: Asume que el backend está disponible en la misma origen bajo
-        <code>/articulo</code>. Para <strong>create</strong> uso
-        idTipoarticulo=1 e idClub=1 por defecto — si esos FK no existen, la
-        creación fallará.
+        <code>/partido</code>.
       </p>
     </div>
 
@@ -357,31 +351,39 @@
         .getElementById("btnCreateUpdateDelete")
         .addEventListener("click", async () => {
           try {
-            // Crear
-            const descripcion =
-              document.getElementById("createDescripcion").value ||
-              "Prueba API";
-            const precio =
-              Number(document.getElementById("createPrecio").value) || 0;
-            const descuento =
-              Number(document.getElementById("createDescuento").value) || 0;
-            const idTipoarticulo =
-              Number(document.getElementById("createIdTipo").value) || 1;
-            const idClub =
-              Number(document.getElementById("createIdClub").value) || 1;
+            // Valores que queremos en la UPDATE (leídos del formulario)
+            const nombre_rival =
+              (document.getElementById("createNombreRival") &&
+                document.getElementById("createNombreRival").value) ||
+              "Rival prueba";
+            const id_equipo =
+              Number(
+                (document.getElementById("createIdEquipo") &&
+                  document.getElementById("createIdEquipo").value) ||
+                  1
+              ) || 1;
+            let localEl = document.getElementById("createLocal");
+            let local = true;
+            if (localEl) {
+              if (localEl.type === "checkbox") local = !!localEl.checked;
+              else local = localEl.value === "true" || localEl.value === "1";
+            }
+            const resultado =
+              (document.getElementById("createResultado") &&
+                document.getElementById("createResultado").value) ||
+              "0-0";
+
             log(
-              "Iniciando CREATE con idTipoarticulo=" +
-                idTipoarticulo +
-                " idClub=" +
-                idClub
+              "Iniciando proceso: POST (nulls) -> PUT (valores) -> GET -> DELETE"
             );
+
+            // 1) POST inicial: enviar campos null/0 para que el create del backend
+            // (que hace partidoEntity.setNombre_rival(null) etc.) genere el id
             const createPayload = {
-              descripcion,
-              precio,
-              descuento,
-              imagen: null,
-              idTipoarticulo,
-              idClub,
+              nombre_rival: null,
+              id_equipo: 0,
+              local: null,
+              resultado: null,
             };
             const created = await api("", {
               method: "POST",
@@ -395,45 +397,55 @@
             const newId = created.id;
             log("OK: creado id=" + newId);
 
-            // Update: cambiar campos no FK
-            const updatedPayload = Object.assign({}, created, {
-              descripcion: descripcion + " - UPDATED",
-              precio: (Number(precio) + 1).toFixed(2),
-              descuento: Number(descuento) + 0.5,
-              imagen: null,
-            });
-            log("Executing UPDATE for id=" + newId);
+            // 2) PUT update: ahora enviamos los valores reales (incluyendo id)
+            const updatedPayload = {
+              id: newId,
+              nombre_rival: nombre_rival,
+              id_equipo: id_equipo,
+              local: local,
+              resultado: resultado,
+            };
+            log("Executing UPDATE for id=" + newId, updatedPayload);
             const updated = await api("", {
               method: "PUT",
               body: JSON.stringify(updatedPayload),
             });
             log("UPDATE result:", updated);
 
-            // Comprobar que los campos han cambiado (no FK)
+            // 3) Comprobar que los campos han cambiado
             const after = await api("/" + newId, { method: "GET" });
             log("GET after update:", after);
             let okUpdate = true;
-            if (after.descripcion !== updatedPayload.descripcion) {
+            if (after.nombre_rival !== updatedPayload.nombre_rival) {
               okUpdate = false;
-              log("FALLO: descripcion no actualizada");
+              log("FALLO: nombre_rival no actualizado");
             }
-            if (Number(after.precio) !== Number(updatedPayload.precio)) {
+            if (Number(after.id_equipo) !== Number(id_equipo)) {
               okUpdate = false;
               log(
-                "FALLO: precio no actualizado (esperado " +
-                  updatedPayload.precio +
+                "FALLO: id_equipo cambió (no debería) - esperado " +
+                  id_equipo +
                   " recibido " +
-                  after.precio +
+                  after.id_equipo
+              );
+            }
+            if (Boolean(after.local) !== Boolean(updatedPayload.local)) {
+              okUpdate = false;
+              log(
+                "FALLO: local no actualizado (esperado " +
+                  updatedPayload.local +
+                  " recibido " +
+                  after.local +
                   ")"
               );
             }
-            if (Number(after.descuento) !== Number(updatedPayload.descuento)) {
+            if (after.resultado !== updatedPayload.resultado) {
               okUpdate = false;
-              log("FALLO: descuento no actualizado");
+              log("FALLO: resultado no actualizado");
             }
             if (okUpdate) log("OK: campos no FK actualizados correctamente");
 
-            // Delete
+            // 4) Delete
             log("Deleting id=" + newId);
             const del = await api("/" + newId, { method: "DELETE" });
             log("DELETE result:", del);
