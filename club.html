@@ -273,7 +273,7 @@
             else log("FALLO: count != 0 (valor actual: " + count + ")");
 
             // Llenar 20 registros
-            await api("/fill/20", { method: "GET" });
+            await api("/fill/20", { method: "POST" });
             log("fill/20 ejecutado");
             count = await api("/count", { method: "GET" });
             log("count after fill/20:", count);
@@ -306,7 +306,7 @@
         .addEventListener("click", async () => {
           log("Iniciando fill/100...");
           try {
-            await api("/fill/100", { method: "GET" });
+            await api("/fill/100", { method: "POST" });
             log("fill/100 ejecutado");
             const count = await api("/count", { method: "GET" });
             log("count after fill/100:", count);

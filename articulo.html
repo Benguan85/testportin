@@ -248,7 +248,7 @@
       document.getElementById("btnFill").addEventListener("click", async () => {
         log("Iniciando fill/50 (artículos predeterminados)...");
         try {
-          const result = await api("/fill/50", { method: "GET" });
+          const result = await api("/fill/50", { method: "POST" });
           log("fill response:", result);
           const count = await api("/count", { method: "GET" });
           log("count after fill:", count);
