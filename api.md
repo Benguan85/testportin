@@ -1,2293 +1,373 @@
 # API REST - Gesportin
 
-## Descripción General
+## Resumen
+- Base URL: http://localhost:8089
+- CORS: habilitado para todos los orígenes (*)
+- Claves foráneas (`@ManyToOne`) se devuelven como objetos expandidos (p. ej. `usuario.club`, `equipo.categoria`).
+- Colecciones `@OneToMany` se exponen como contadores enteros: comentarios, puntuaciones, carritos, compras, ligas, etc.
+- Fechas con `@JsonFormat` usan el patrón `yyyy-MM-dd HH:mm:ss`.
+- Paginación: cuando el controlador usa `@PageableDefault(size = 1000)`, el `size` por defecto es 1000; en otros casos aplica el valor por defecto de Spring si no se envía `size`.
+- Estructura de página:
+```json
+{
+  "content": [ /* elementos */ ],
+  "totalElements": 0,
+  "totalPages": 0,
+  "size": 1000,
+  "number": 0,
+  "sort": { /* orden */ }
+}
+```
 
-Gesportin es una API REST desarrollada con Spring Boot para la gestión integral de clubes deportivos. La aplicación permite administrar usuarios, equipos, jugadores, partidos, noticias, tienda online y gestión económica de los clubes.
-
-**URL Base**: `http://localhost:8089`
-
-**CORS**: Habilitado para todos los orígenes (`*`)
-
----
-
-## Índice de Recursos
-
-1. [Autenticación](#autenticación)
-2. [Usuarios](#usuarios)
-3. [Tipos de Usuario](#tipos-de-usuario)
-4. [Clubes](#clubes)
-5. [Equipos](#equipos)
-6. [Jugadores](#jugadores)
-7. [Categorías](#categorías)
-8. [Temporadas](#temporadas)
-9. [Ligas](#ligas)
-10. [Partidos](#partidos)
-11. [Noticias](#noticias)
-12. [Comentarios](#comentarios)
-13. [Puntuaciones](#puntuaciones)
-14. [Artículos](#artículos)
-15. [Tipos de Artículo](#tipos-de-artículo)
-16. [Carrito](#carrito)
-17. [Facturas](#facturas)
-18. [Compras](#compras)
-19. [Cuotas](#cuotas)
-20. [Pagos](#pagos)
+## Índice rápido
+1. Autenticación
+2. Usuarios
+3. Tipos de Usuario
+4. Roles de Usuario
+5. Clubes
+6. Equipos
+7. Jugadores
+8. Categorías
+9. Temporadas
+10. Ligas
+11. Partidos
+12. Noticias
+13. Comentarios
+14. Comentarios de Artículos
+15. Puntuaciones
+16. Artículos
+17. Tipos de Artículo
+18. Carrito
+19. Facturas
+20. Compras
+21. Cuotas
+22. Pagos
 
 ---
 
 ## 1. Autenticación
-
-### Modelo de Datos: SessionBean
-```json
-{
-  "username": "string",
-  "password": "string"
-}
-```
-
-### Modelo de Respuesta: TokenBean
-```json
-{
-  "token": "string"
-}
-```
-
-### Endpoints
-
-#### POST /session/login
-Autentica un usuario en el sistema.
-
-**Request Body:**
-```json
-{
-  "username": "usuario123",
-  "password": "contraseña"
-}
-```
-
-**Response 200:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**Posibles Errores:**
-- 401 Unauthorized: Credenciales inválidas
-
----
-
-#### GET /session/check
-Verifica si existe una sesión activa.
-
-**Response 200:**
-```json
-true
-```
-
-**Response 200 (sin sesión):**
-```json
-false
-```
+- POST /session/login — body: `{ "username", "password" }` → `TokenBean { token }`
+- GET /session/check — devuelve `true` si hay sesión activa, `false` si no.
 
 ---
 
 ## 2. Usuarios
+Modelo: `id`, `nombre`, `apellido1`, `apellido2`, `username`, `password`, `fechaAlta`, `genero`, `tipousuario` (objeto), `rolusuario` (objeto), `club` (objeto), contadores `comentarios`, `puntuaciones`, `comentarioarts`, `carritos`, `facturas`.
 
-### Modelo de Datos: UsuarioEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| nombre | String | Not blank, Not null | Nombre del usuario |
-| apellido1 | String | Not blank, Not null | Primer apellido |
-| apellido2 | String | Not blank, Not null | Segundo apellido |
-| username | String | Not blank, Not null, Unique | Nombre de usuario único |
-| password | String | Not blank, Not null | Contraseña (hash) |
-| fechaAlta | LocalDateTime | Not null | Fecha de alta en el sistema |
-| genero | Integer | Not null | Género (0: Femenino, 1: Masculino, etc.) |
-| idTipousuario | Long | Not null | FK: Tipo de usuario |
-| idClub | Long | Not null | FK: Club al que pertenece |
-
-### Endpoints
-
-#### GET /usuario/{id}
-Obtiene un usuario por su ID.
-
-**Parámetros:**
-- `id` (path): Long - ID del usuario
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "nombre": "Juan",
-  "apellido1": "García",
-  "apellido2": "López",
-  "username": "jgarcia",
-  "password": "$2a$10$...",
-  "fechaAlta": "2024-01-15 10:30:00",
-  "genero": 1,
-  "idTipousuario": 2,
-  "idClub": 1
-}
-```
-
-**Posibles Errores:**
-- 404 Not Found: Usuario no encontrado
-
----
-
-#### GET /usuario
-Obtiene una página de usuarios con filtros opcionales.
-
-**Parámetros de Query (opcionales):**
-- `nombre` (String): Filtrar por nombre
-- `username` (String): Filtrar por username
-- `idTipousuario` (Long): Filtrar por tipo de usuario
-- `idClub` (Long): Filtrar por club
-- `page` (Integer): Número de página (default: 0)
-- `size` (Integer): Tamaño de página (default: 1000)
-- `sort` (String): Campo de ordenación
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "nombre": "Juan",
-      "apellido1": "García",
-      "apellido2": "López",
-      "username": "jgarcia",
-      "password": "$2a$10$...",
-      "fechaAlta": "2024-01-15 10:30:00",
-      "genero": 1,
-      "idTipousuario": 2,
-      "idClub": 1
-    }
-  ],
-  "pageable": {
-    "pageNumber": 0,
-    "pageSize": 1000
-  },
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /usuario
-Crea un nuevo usuario.
-
-**Request Body:**
-```json
-{
-  "nombre": "María",
-  "apellido1": "Fernández",
-  "apellido2": "Ruiz",
-  "username": "mfernandez",
-  "password": "password123",
-  "fechaAlta": "2024-01-20 14:00:00",
-  "genero": 0,
-  "idTipousuario": 3,
-  "idClub": 1
-}
-```
-
-**Response 200:**
-```json
-{
-  "id": 2,
-  "nombre": "María",
-  "apellido1": "Fernández",
-  "apellido2": "Ruiz",
-  "username": "mfernandez",
-  "password": "$2a$10$...",
-  "fechaAlta": "2024-01-20 14:00:00",
-  "genero": 0,
-  "idTipousuario": 3,
-  "idClub": 1
-}
-```
-
-**Posibles Errores:**
-- 400 Bad Request: Datos inválidos
-- 409 Conflict: Username ya existe
-
----
-
-#### PUT /usuario
-Actualiza un usuario existente.
-
-**Request Body:**
-```json
-{
-  "id": 2,
-  "nombre": "María",
-  "apellido1": "Fernández",
-  "apellido2": "Ruiz",
-  "username": "mfernandez",
-  "password": "newpassword",
-  "fechaAlta": "2024-01-20 14:00:00",
-  "genero": 0,
-  "idTipousuario": 3,
-  "idClub": 1
-}
-```
-
-**Response 200:**
-```json
-{
-  "id": 2,
-  "nombre": "María",
-  "apellido1": "Fernández",
-  "apellido2": "Ruiz",
-  "username": "mfernandez",
-  "password": "$2a$10$...",
-  "fechaAlta": "2024-01-20 14:00:00",
-  "genero": 0,
-  "idTipousuario": 3,
-  "idClub": 1
-}
-```
-
-**Posibles Errores:**
-- 404 Not Found: Usuario no encontrado
-- 400 Bad Request: Datos inválidos
-
----
-
-#### DELETE /usuario/{id}
-Elimina un usuario por su ID.
-
-**Parámetros:**
-- `id` (path): Long - ID del usuario
-
-**Response 200:**
-```json
-1
-```
-
-**Posibles Errores:**
-- 404 Not Found: Usuario no encontrado
-
----
-
-#### GET /usuario/fill/{cantidad}
-Rellena la base de datos con usuarios aleatorios (para testing).
-
-**Parámetros:**
-- `cantidad` (path): Long - Cantidad de usuarios a crear
-
-**Response 200:**
-```json
-50
-```
-
----
-
-#### DELETE /usuario/empty
-Vacía todos los usuarios de la base de datos.
-
-**Response 200:**
-```json
-25
-```
-
----
-
-#### GET /usuario/count
-Cuenta el total de usuarios.
-
-**Response 200:**
-```json
-100
-```
+Endpoints:
+- GET /usuario/{id}
+- GET /usuario?page&size&sort&nombre&username&idTipousuario&idClub&idRol (size por defecto 1000)
+- POST /usuario
+- PUT /usuario
+- DELETE /usuario/{id}
+- POST /usuario/fill/{cantidad}
+- DELETE /usuario/empty
+- GET /usuario/count
 
 ---
 
 ## 3. Tipos de Usuario
+Modelo: `id`, `descripcion`, contador `usuarios`.
 
-### Modelo de Datos: TipousuarioEntity
+Endpoints:
+- GET /tipousuario/{id}
+- GET /tipousuario (lista completa)
+- GET /tipousuario/fill
+- DELETE /tipousuario/empty
+- GET /tipousuario/count
 
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| descripcion | String | Not blank | Descripción del tipo (ej: Admin, Jugador, Entrenador) |
-
-### Endpoints
-
-#### GET /tipousuario/{id}
-Obtiene un tipo de usuario por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "descripcion": "Administrador"
-}
-```
-
----
-
-#### GET /tipousuario
-Obtiene todos los tipos de usuario disponibles.
-
-**Response 200:**
-```json
-[
-  {
-    "id": 1,
-    "descripcion": "Administrador"
-  },
-  {
-    "id": 2,
-    "descripcion": "Entrenador"
-  },
-  {
-    "id": 3,
-    "descripcion": "Jugador"
-  }
-]
-```
-
----
-
-#### GET /tipousuario/fill
-Rellena la tabla con tipos de usuario predeterminados.
-
-**Response 200:**
-```json
-3
-```
-
----
-
-#### DELETE /tipousuario/empty
-Vacía todos los tipos de usuario.
-
-**Response 200:**
-```json
-3
-```
-
----
-
-#### GET /tipousuario/count
-Cuenta el total de tipos de usuario.
-
-**Response 200:**
-```json
-3
-```
-
----
-
-## 4. Clubes
-
-### Modelo de Datos: ClubEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| nombre | String | Not null | Nombre del club |
-| direccion | String | Not null | Dirección del club |
-| telefono | String | Not null | Teléfono de contacto |
-| fechaAlta | LocalDateTime | Not null | Fecha de alta del club |
-| idPresidente | Long | Not null | FK: Usuario presidente |
-| idVicepresidente | Long | Not null | FK: Usuario vicepresidente |
-| imagen | byte[] | Not null | Logo del club (BLOB) |
-
-### Endpoints
-
-#### GET /club/{id}
-Obtiene un club por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "nombre": "CD Deportivo",
-  "direccion": "Calle Mayor 123",
-  "telefono": "963123456",
-  "fechaAlta": "2020-01-01 10:00:00",
-  "idPresidente": 5,
-  "idVicepresidente": 6,
-  "imagen": [...]
-}
-```
-
----
-
-#### GET /club
-Obtiene una página de clubes.
-
-**Parámetros de Query:**
-- `page` (Integer): Número de página
-- `size` (Integer): Tamaño de página
-- `sort` (String): Campo de ordenación
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "nombre": "CD Deportivo",
-      "direccion": "Calle Mayor 123",
-      "telefono": "963123456",
-      "fechaAlta": "2020-01-01 10:00:00",
-      "idPresidente": 5,
-      "idVicepresidente": 6,
-      "imagen": [...]
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /club
-Crea un nuevo club.
-
-**Request Body:**
-```json
-{
-  "nombre": "CF Nuevo Club",
-  "direccion": "Avenida del Deporte 45",
-  "telefono": "961987654",
-  "fechaAlta": "2024-01-20 12:00:00",
-  "idPresidente": 10,
-  "idVicepresidente": 11,
-  "imagen": [...]
-}
-```
-
-**Response 200:**
-```json
-{
-  "id": 2,
-  "nombre": "CF Nuevo Club",
-  "direccion": "Avenida del Deporte 45",
-  "telefono": "961987654",
-  "fechaAlta": "2024-01-20 12:00:00",
-  "idPresidente": 10,
-  "idVicepresidente": 11,
-  "imagen": [...]
-}
-```
-
----
-
-#### PUT /club
-Actualiza un club existente.
-
-**Request Body:** Similar a POST con `id` incluido
-
-**Response 200:** Retorna el club actualizado
-
----
-
-#### DELETE /club/{id}
-Elimina un club.
-
-**Response 200:**
-```json
-1
-```
-
----
-
-#### GET /club/fill/{cantidad}
-Genera clubes aleatorios.
-
-**Response 200:**
-```json
-10
-```
-
----
-
-#### DELETE /club/empty
-Vacía todos los clubes.
-
-**Response 200:**
-```json
-5
-```
-
----
-
-#### GET /club/count
-Cuenta el total de clubes.
-
-**Response 200:**
-```json
-15
-```
-
----
-
-## 5. Equipos
-
-### Modelo de Datos: EquipoEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| nombre | String | Not null, Size(3-1024) | Nombre del equipo |
-| idEntrenador | Long | Not null | FK: Usuario entrenador |
-| idCategoria | Long | Not null | FK: Categoría del equipo |
-
-### Endpoints
-
-#### GET /equipo/{id}
-Obtiene un equipo por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "nombre": "Equipo Juvenil A",
-  "idEntrenador": 15,
-  "idCategoria": 3
-}
-```
-
----
-
-#### GET /equipo
-Obtiene una página de equipos.
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "nombre": "Equipo Juvenil A",
-      "idEntrenador": 15,
-      "idCategoria": 3
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /equipo
-Crea un nuevo equipo.
-
-**Request Body:**
-```json
-{
-  "nombre": "Equipo Infantil B",
-  "idEntrenador": 20,
-  "idCategoria": 2
-}
-```
-
-**Response 200:** Retorna el equipo creado con su ID
-
----
-
-#### PUT /equipo
-Actualiza un equipo existente.
-
-**Response 200:** Retorna el equipo actualizado
-
----
-
-#### DELETE /equipo/{id}
-Elimina un equipo.
-
-**Response 200:**
-```json
-1
-```
-
----
-
-#### GET /equipo/fill/{cantidad}
-Genera equipos aleatorios.
-
----
-
-#### DELETE /equipo/empty
-Vacía todos los equipos.
-
----
-
-#### GET /equipo/count
-Cuenta el total de equipos.
-
----
-
-## 6. Jugadores
-
-### Modelo de Datos: JugadorEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| dorsal | int | Not null | Número de dorsal |
-| posicion | String | Not null, Size(3-255) | Posición en el campo |
-| capitan | Boolean | Not null | Si es capitán del equipo |
-| imagen | String | Nullable, Size(3-255) | URL de la imagen del jugador |
-| idUsuario | Long | Not null | FK: Usuario asociado |
-| idEquipo | Long | Not null | FK: Equipo al que pertenece |
-
-### Endpoints
-
-#### GET /jugador/{id}
-Obtiene un jugador por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "dorsal": 10,
-  "posicion": "Delantero",
-  "capitan": true,
-  "imagen": "jugador1.jpg",
-  "idUsuario": 25,
-  "idEquipo": 5
-}
-```
-
----
-
-#### GET /jugador
-Obtiene una página de jugadores.
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "dorsal": 10,
-      "posicion": "Delantero",
-      "capitan": true,
-      "imagen": "jugador1.jpg",
-      "idUsuario": 25,
-      "idEquipo": 5
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /jugador
-Crea un nuevo jugador.
-
-**Request Body:**
-```json
-{
-  "dorsal": 7,
-  "posicion": "Centrocampista",
-  "capitan": false,
-  "imagen": "jugador2.jpg",
-  "idUsuario": 30,
-  "idEquipo": 5
-}
-```
-
-**Response 200:** Retorna el jugador creado
-
----
-
-#### PUT /jugador
-Actualiza un jugador existente.
-
----
-
-#### DELETE /jugador/{id}
-Elimina un jugador.
-
----
-
-#### GET /jugador/fill/{cantidad}
-Genera jugadores aleatorios.
-
----
-
-#### DELETE /jugador/empty
-Vacía todos los jugadores.
-
----
-
-#### GET /jugador/count
-Cuenta el total de jugadores.
-
----
-
-## 7. Categorías
-
-### Modelo de Datos: CategoriaEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| nombre | String | Not null, Size(4-255) | Nombre de la categoría |
-| idTemporada | Long | Not null | FK: Temporada asociada |
-
-### Endpoints
-
-#### GET /categoria/{id}
-Obtiene una categoría por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "nombre": "Juvenil",
-  "idTemporada": 2
-}
-```
-
----
-
-#### GET /categoria
-Obtiene una página de categorías.
-
----
-
-#### POST /categoria
-Crea una nueva categoría.
-
-**Request Body:**
-```json
-{
-  "nombre": "Infantil",
-  "idTemporada": 2
-}
-```
-
----
-
-#### PUT /categoria
-Actualiza una categoría existente.
-
----
-
-#### DELETE /categoria/{id}
-Elimina una categoría.
-
----
-
-#### GET /categoria/fill/{cantidad}
-Genera categorías aleatorias.
-
----
-
-#### DELETE /categoria/empty
-Vacía todas las categorías.
-
----
-
-#### GET /categoria/count
-Cuenta el total de categorías.
-
----
-
-## 8. Temporadas
-
-### Modelo de Datos: TemporadaEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| descripcion | String | Not null, Size(1-256) | Descripción de la temporada |
-| idClub | Long | Not null | FK: Club asociado |
-
-### Endpoints
-
-#### GET /temporada/{id}
-Obtiene una temporada por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "descripcion": "Temporada 2023/2024",
-  "idClub": 1
-}
-```
-
----
-
-#### GET /temporada
-Obtiene una página de temporadas.
-
----
-
-#### POST /temporada
-Crea una nueva temporada.
-
-**Request Body:**
-```json
-{
-  "descripcion": "Temporada 2024/2025",
-  "idClub": 1
-}
-```
-
----
-
-#### PUT /temporada
-Actualiza una temporada existente.
-
----
-
-#### DELETE /temporada/{id}
-Elimina una temporada.
-
----
-
-#### GET /temporada/fill/{cantidad}
-Genera temporadas aleatorias.
-
----
-
-#### DELETE /temporada/empty
-Vacía todas las temporadas.
-
----
-
-#### GET /temporada/count
-Cuenta el total de temporadas.
-
----
-
-## 9. Ligas
-
-### Modelo de Datos: LigaEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| nombre | String | Not blank, Not null | Nombre de la liga |
-| idEquipo | Long | Not null | FK: Equipo participante |
-
-### Endpoints
-
-#### GET /liga/{id}
-Obtiene una liga por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "nombre": "Liga Provincial Juvenil",
-  "idEquipo": 5
-}
-```
-
----
-
-#### GET /liga
-Obtiene una página de ligas con filtros opcionales.
-
-**Parámetros de Query (opcionales):**
-- `nombre` (String): Filtrar por nombre
-- `idEquipo` (Long): Filtrar por equipo
-- `page`, `size`, `sort`: Paginación
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "nombre": "Liga Provincial Juvenil",
-      "idEquipo": 5
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /liga
-Crea una nueva liga.
-
-**Request Body:**
-```json
-{
-  "nombre": "Copa Federación",
-  "idEquipo": 7
-}
-```
-
----
-
-#### PUT /liga
-Actualiza una liga existente.
-
----
-
-#### DELETE /liga/{id}
-Elimina una liga.
-
----
-
-#### GET /liga/fill/{cantidad}
-Genera ligas aleatorias.
-
----
-
-#### DELETE /liga/empty
-Vacía todas las ligas.
-
----
-
-#### GET /liga/count
-Cuenta el total de ligas.
-
----
-
-## 10. Partidos
-
-### Modelo de Datos: PartidoEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| rival | String | Not null, Size(3-1024) | Nombre del equipo rival |
-| idLiga | Long | Not null | FK: Liga donde se juega |
-| local | Boolean | Not null | true si es local, false si es visitante |
-| resultado | String | Not null, Size(3-1024) | Resultado del partido (ej: "2-1") |
-
-### Endpoints
-
-#### GET /partido/{id}
-Obtiene un partido por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "rival": "CD Rival FC",
-  "idLiga": 3,
-  "local": true,
-  "resultado": "3-1"
-}
-```
-
----
-
-#### GET /partido
-Obtiene una página de partidos.
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "rival": "CD Rival FC",
-      "idLiga": 3,
-      "local": true,
-      "resultado": "3-1"
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /partido
-Crea un nuevo partido.
-
-**Request Body:**
-```json
-{
-  "rival": "UD Competidor",
-  "idLiga": 3,
-  "local": false,
-  "resultado": "1-1"
-}
-```
-
----
-
-#### PUT /partido
-Actualiza un partido existente.
-
----
-
-#### DELETE /partido/{id}
-Elimina un partido.
-
----
-
-#### GET /partido/fill/{cantidad}
-Genera partidos aleatorios.
-
----
-
-#### DELETE /partido/empty
-Vacía todos los partidos.
-
----
-
-#### GET /partido/count
-Cuenta el total de partidos.
-
----
-
-## 11. Noticias
-
-### Modelo de Datos: NoticiaEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| titulo | String | Not null, Size(3-1024) | Título de la noticia |
-| contenido | String | Not null, Size(min=3) | Contenido de la noticia |
-| fecha | LocalDateTime | Not null, Format: yyyy-MM-dd HH:mm:ss | Fecha de publicación |
-| imagen | byte[] | Nullable | Imagen de la noticia (BLOB) |
-| idClub | Long | Not null | FK: Club que publica |
-
-### Endpoints
-
-#### GET /noticia/{id}
-Obtiene una noticia por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "titulo": "Victoria del equipo juvenil",
-  "contenido": "El equipo juvenil consigue una gran victoria...",
-  "fecha": "2024-01-15 18:30:00",
-  "imagen": [...],
-  "idClub": 1
-}
-```
-
----
-
-#### GET /noticia
-Obtiene una página de noticias.
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "titulo": "Victoria del equipo juvenil",
-      "contenido": "El equipo juvenil consigue una gran victoria...",
-      "fecha": "2024-01-15 18:30:00",
-      "imagen": [...],
-      "idClub": 1
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /noticia
-Crea una nueva noticia.
-
-**Request Body:**
-```json
-{
-  "titulo": "Fichaje estrella",
-  "contenido": "El club ficha a un nuevo jugador...",
-  "fecha": "2024-01-20 10:00:00",
-  "imagen": [...],
-  "idClub": 1
-}
-```
-
----
-
-#### PUT /noticia
-Actualiza una noticia existente.
-
----
-
-#### DELETE /noticia/{id}
-Elimina una noticia.
-
 ---
 
-#### GET /noticia/fill/{cantidad}
-Genera noticias aleatorias.
+## 4. Roles de Usuario
+Modelo: `id`, `descripcion`, contador `usuarios`.
 
----
-
-#### DELETE /noticia/empty
-Vacía todas las noticias.
-
----
-
-#### GET /noticia/count
-Cuenta el total de noticias.
-
----
-
-## 12. Comentarios
-
-### Modelo de Datos: ComentarioEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| contenido | String | Not null, Size(3-1024) | Contenido del comentario |
-| idNoticia | Long | Not null | FK: Noticia comentada |
-| idUsuario | Long | Not null | FK: Usuario que comenta |
-
-### Endpoints
-
-#### GET /comentario/{id}
-Obtiene un comentario por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "contenido": "Excelente partido, enhorabuena!",
-  "idNoticia": 5,
-  "idUsuario": 12
-}
-```
-
----
-
-#### GET /comentario
-Obtiene una página de comentarios.
-
-**Parámetros de Query:**
-- `page`, `size`, `sort`: Paginación (size por defecto: 1000)
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "contenido": "Excelente partido, enhorabuena!",
-      "idNoticia": 5,
-      "idUsuario": 12
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /comentario
-Crea un nuevo comentario.
-
-**Request Body:**
-```json
-{
-  "contenido": "Gran resultado del equipo!",
-  "idNoticia": 5,
-  "idUsuario": 15
-}
-```
-
-**Response 200:**
-```json
-1
-```
-(Retorna el ID del comentario creado)
-
----
-
-#### PUT /comentario
-Actualiza un comentario existente.
-
-**Response 200:**
-```json
-1
-```
-(Retorna el ID del comentario actualizado)
-
----
-
-#### DELETE /comentario/{id}
-Elimina un comentario.
-
-**Response 200:**
-```json
-1
-```
-
----
-
-#### GET /comentario/fill/{cantidad}
-Genera comentarios aleatorios.
-
----
-
-#### DELETE /comentario/empty
-Vacía todos los comentarios.
-
----
-
-#### GET /comentario/count
-Cuenta el total de comentarios.
-
----
-
-## 12.1 Comentarios de Artículos
-
-### Modelo de Datos: ComentarioartEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| contenido | String | Not null, Size(3-1024) | Contenido del comentario |
-| idArticulo | Long | Not null | FK: Artículo comentado |
-| idUsuario | Long | Not null | FK: Usuario que comenta |
-
-### Endpoints
-
-#### GET /comentarioart/{id}
-Obtiene un comentario de artículo por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "contenido": "Gran análisis del artículo, gracias!",
-  "idArticulo": 3,
-  "idUsuario": 15
-}
-```
-
----
-
-#### GET /comentarioart
-Obtiene una página de comentarios de artículos.
-
-**Parámetros de Query:**
-- `page`, `size`, `sort`: Paginación (size por defecto: 1000)
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "contenido": "Gran análisis del artículo, gracias!",
-      "idArticulo": 3,
-      "idUsuario": 15
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /comentarioart
-Crea un nuevo comentario de artículo.
-
-**Request Body:**
-```json
-{
-  "contenido": "Me ha gustado mucho este artículo",
-  "idArticulo": 3,
-  "idUsuario": 15
-}
-```
-
-**Response 200:**
-```json
-1
-```
-(Retorna el ID del comentario creado)
-
----
-
-#### PUT /comentarioart
-Actualiza un comentario de artículo existente.
-
-**Request Body (ejemplo):**
-```json
-{
-  "id": 1,
-  "contenido": "Actualizado: una corrección en el comentario",
-  "idArticulo": 3,
-  "idUsuario": 15
-}
-```
-
-**Response 200:**
-```json
-1
-```
-(Retorna el ID del comentario actualizado)
-
----
-
-#### DELETE /comentarioart/{id}
-Elimina un comentario de artículo.
-
-**Response 200:**
-```json
-1
-```
-
----
-
-#### GET /comentarioart/fill/{cantidad}
-Genera comentarios de artículos aleatorios.
-
----
-
-#### DELETE /comentarioart/empty
-Vacía todos los comentarios de artículos.
-
----
-
-#### GET /comentarioart/count
-Cuenta el total de comentarios de artículos.
-
----
-
-## 13. Puntuaciones
-
-### Modelo de Datos: PuntuacionEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| puntuacion | Integer | Not null, Min(1), Max(5) | Puntuación de 1 a 5 estrellas |
-| idNoticia | Long | Not null | FK: Noticia puntuada |
-| idUsuario | Long | Not null | FK: Usuario que puntúa |
-
-### Endpoints
-
-#### GET /puntuacion/{id}
-Obtiene una puntuación por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "puntuacion": 5,
-  "idNoticia": 8,
-  "idUsuario": 20
-}
-```
-
----
-
-#### GET /puntuacion
-Obtiene una página de puntuaciones.
-
----
-
-#### POST /puntuacion
-Crea una nueva puntuación.
-
-**Request Body:**
-```json
-{
-  "puntuacion": 4,
-  "idNoticia": 8,
-  "idUsuario": 22
-}
-```
-
-**Validación:**
-- `puntuacion` debe estar entre 1 y 5
-
----
-
-#### PUT /puntuacion
-Actualiza una puntuación existente.
-
----
-
-#### DELETE /puntuacion/{id}
-Elimina una puntuación.
-
----
-
-#### GET /puntuacion/fill/{cantidad}
-Genera puntuaciones aleatorias.
-
----
-
-#### DELETE /puntuacion/empty
-Vacía todas las puntuaciones.
-
----
-
-#### GET /puntuacion/count
-Cuenta el total de puntuaciones.
-
----
-
-## 14. Artículos
-
-### Modelo de Datos: ArticuloEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| descripcion | String | Not blank | Descripción del artículo |
-| precio | BigDecimal | Not null | Precio del artículo |
-| descuento | BigDecimal | Nullable | Descuento aplicable |
-| imagen | byte[] | Nullable | Imagen del artículo (BLOB) |
-| idTipoarticulo | Long | Not null | FK: Tipo de artículo |
-
-### Endpoints
-
-#### GET /articulo/{id}
-Obtiene un artículo por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "descripcion": "Camiseta oficial temporada 2024",
-  "precio": 49.99,
-  "descuento": 5.00,
-  "imagen": [...],
-  "idTipoarticulo": 2
-}
-```
-
----
-
-#### GET /articulo
-Obtiene una página de artículos con filtros opcionales.
-
-**Parámetros de Query (opcionales):**
-- `descripcion` (String): Filtrar por descripción
-- `idTipoarticulo` (Long): Filtrar por tipo de artículo
-- `page`, `size`, `sort`: Paginación (size por defecto: 1000)
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "descripcion": "Camiseta oficial temporada 2024",
-      "precio": 49.99,
-      "descuento": 5.00,
-      "imagen": [...],
-      "idTipoarticulo": 2
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /articulo
-Crea un nuevo artículo.
-
-**Request Body:**
-```json
-{
-  "descripcion": "Pantalón corto oficial",
-  "precio": 29.99,
-  "descuento": 0,
-  "imagen": [...],
-  "idTipoarticulo": 2
-}
-```
-
----
-
-#### PUT /articulo
-Actualiza un artículo existente.
-
----
-
-#### DELETE /articulo/{id}
-Elimina un artículo.
-
----
-
-#### GET /articulo/fill/{cantidad}
-Genera artículos aleatorios.
-
----
-
-#### GET /articulo/fill
-Genera 50 artículos aleatorios por defecto.
+Endpoints:
+- GET /rolusuario/{id}
+- GET /rolusuario/all (lista completa)
+- GET /rolusuario?page&size&sort&descripcion (size por defecto 1000)
+- POST /rolusuario
+- PUT /rolusuario
+- DELETE /rolusuario/{id}
+- POST /rolusuario/fill
+- DELETE /rolusuario/empty
+- GET /rolusuario/count
 
-**Response 200:**
-```json
-50
-```
-
----
-
-#### DELETE /articulo/empty
-Vacía todos los artículos.
-
----
-
-#### GET /articulo/count
-Cuenta el total de artículos.
-
----
-
-## 15. Tipos de Artículo
-
-### Modelo de Datos: TipoarticuloEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| descripcion | String | Not blank, Not null | Descripción del tipo |
-| idClub | Long | Not null | FK: Club asociado |
-
-### Endpoints
-
-#### GET /tipoarticulo/{id}
-Obtiene un tipo de artículo por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "descripcion": "Equipamiento",
-  "idClub": 1
-}
-```
-
----
-
-#### GET /tipoarticulo
-Obtiene una página de tipos de artículo con filtros opcionales.
-
-**Parámetros de Query (opcionales):**
-- `descripcion` (String): Filtrar por descripción
- 
-- `page`, `size`, `sort`: Paginación (size por defecto: 1000)
-
----
-
-#### POST /tipoarticulo
-Crea un nuevo tipo de artículo.
-
-**Request Body:**
-```json
-{
-  "descripcion": "Merchandising",
-  "idClub": 1
-}
-```
-
----
-
-#### PUT /tipoarticulo
-Actualiza un tipo de artículo existente.
-
----
-
-#### DELETE /tipoarticulo/{id}
-Elimina un tipo de artículo.
-
----
-
-#### GET /tipoarticulo/fill/{cantidad}
-Genera tipos de artículo aleatorios.
-
----
-
-#### DELETE /tipoarticulo/empty
-Vacía todos los tipos de artículo.
-
----
-
-#### GET /tipoarticulo/count
-Cuenta el total de tipos de artículo.
-
----
-
-## 16. Carrito
-
-### Modelo de Datos: CarritoEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| cantidad | Integer | Not null | Cantidad de artículos |
-| idArticulo | Long | Not null | FK: Artículo en el carrito |
-| idUsuario | Long | Not null | FK: Usuario propietario |
-
-### Endpoints
-
-#### GET /carrito/{id}
-Obtiene un item del carrito por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "cantidad": 2,
-  "idArticulo": 5,
-  "idUsuario": 10
-}
-```
-
----
-
-#### GET /carrito
-Obtiene una página de items del carrito.
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "cantidad": 2,
-      "idArticulo": 5,
-      "idUsuario": 10
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /carrito
-Añade un artículo al carrito.
-
-**Request Body:**
-```json
-{
-  "cantidad": 1,
-  "idArticulo": 7,
-  "idUsuario": 10
-}
-```
-
----
-
-#### PUT /carrito
-Actualiza la cantidad de un item en el carrito.
-
----
-
-#### DELETE /carrito/{id}
-Elimina un item del carrito.
-
----
-
-#### GET /carrito/fill/{cantidad}
-Genera items aleatorios en carritos.
-
----
-
-#### DELETE /carrito/empty
-Vacía todos los carritos.
-
----
-
-#### GET /carrito/count
-Cuenta el total de items en carritos.
-
----
-
-## 17. Facturas
-
-### Modelo de Datos: FacturaEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| fecha | LocalDateTime | Not null, Format: yyyy-MM-dd HH:mm:ss | Fecha de emisión |
-| idUsuario | Long | Not null | FK: Usuario que realiza la compra |
-
-### Endpoints
-
-#### GET /factura/{id}
-Obtiene una factura por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "fecha": "2024-01-15 16:30:00",
-  "idUsuario": 10
-}
-```
-
----
-
-#### GET /factura
-Obtiene una página de facturas.
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "fecha": "2024-01-15 16:30:00",
-      "idUsuario": 10
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
-
-#### POST /factura
-Crea una nueva factura.
-
-**Request Body:**
-```json
-{
-  "fecha": "2024-01-20 12:00:00",
-  "idUsuario": 15
-}
-```
-
 ---
 
-#### PUT /factura
-Actualiza una factura existente.
-
----
+## 5. Clubes
+Modelo: `id`, `nombre`, `direccion`, `telefono`, `fechaAlta`, `imagen` (blob), contadores `temporadas`, `noticias`, `tipoarticulos`, `usuarios`.
 
-#### DELETE /factura/{id}
-Elimina una factura.
+Endpoints:
+- GET /club/{id}
+- GET /club?page&size&sort
+- POST /club
+- PUT /club
+- DELETE /club/{id}
+- POST /club/fill/{cantidad}
+- DELETE /club/empty
+- GET /club/count
 
 ---
 
-#### GET /factura/fill/{cantidad}
-Genera facturas aleatorias.
+## 6. Equipos
+Modelo: `id`, `nombre`, `categoria` (objeto), `entrenador` (usuario expandido), contadores `jugadores`, `cuotas`, `ligas`.
 
----
-
-#### DELETE /factura/empty
-Vacía todas las facturas.
+Endpoints:
+- GET /equipo/{id}
+- GET /equipo?page&size&sort&description&idCuota&idUsuario
+- POST /equipo
+- PUT /equipo
+- DELETE /equipo/{id}
+- POST /equipo/fill/{cantidad}
+- DELETE /equipo/empty
+- GET /equipo/count
 
 ---
 
-#### GET /factura/count
-Cuenta el total de facturas.
-
----
+## 7. Jugadores
+Modelo: `id`, `dorsal`, `posicion`, `capitan`, `imagen`, `usuario` (objeto), `equipo` (objeto), contador `pagos`.
 
-## 18. Compras
-
-### Modelo de Datos: CompraEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| cantidad | Integer | Not null | Cantidad comprada |
-| precio | BigDecimal | Not null | Precio unitario en el momento de compra |
-| idArticulo | Long | Not null | FK: Artículo comprado |
-| idFactura | Long | Not null | FK: Factura asociada |
-
-### Endpoints
-
-#### GET /compra/{id}
-Obtiene una compra por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "cantidad": 2,
-  "precio": 49.99,
-  "idArticulo": 3,
-  "idFactura": 5
-}
-```
+Endpoints:
+- GET /jugador/{id}
+- GET /jugador?page&size&sort&posicion&idUsuario&idEquipo (size por defecto 1000)
+- POST /jugador
+- PUT /jugador
+- DELETE /jugador/{id}
+- POST /jugador/fill/{cantidad}
+- DELETE /jugador/empty
+- GET /jugador/count
 
 ---
 
-#### GET /compra
-Obtiene una página de compras.
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "cantidad": 2,
-      "precio": 49.99,
-      "idArticulo": 3,
-      "idFactura": 5
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
+## 8. Categorías
+Modelo: `id`, `nombre`, `temporada` (objeto), contador `equipos`.
 
----
+Endpoints:
+- GET /categoria/{id}
+- GET /categoria?page&size&sort&nombre&id_temporada
+- POST /categoria
+- PUT /categoria
+- DELETE /categoria/{id}
+- POST /categoria/fill/{cantidad}
+- DELETE /categoria/empty
+- GET /categoria/count
 
-#### POST /compra
-Crea una nueva compra (línea de factura).
-
-**Request Body:**
-```json
-{
-  "cantidad": 1,
-  "precio": 29.99,
-  "idArticulo": 7,
-  "idFactura": 5
-}
-```
-
 ---
-
-#### PUT /compra
-Actualiza una compra existente.
 
----
+## 9. Temporadas
+Modelo: `id`, `descripcion`, `club` (objeto), contador `categorias`.
 
-#### DELETE /compra/{id}
-Elimina una compra.
+Endpoints:
+- GET /temporada/{id}
+- GET /temporada?page&size&sort&descripcion&id_club (size por defecto 1000)
+- POST /temporada
+- PUT /temporada
+- DELETE /temporada/{id}
+- POST /temporada/fill/{cantidad}
+- DELETE /temporada/empty
+- GET /temporada/count
 
 ---
-
-#### GET /compra/fill/{cantidad}
-Genera compras aleatorias.
 
----
+## 10. Ligas
+Modelo: `id`, `nombre`, `equipo` (objeto), contador `partidos`.
 
-#### DELETE /compra/empty
-Vacía todas las compras.
+Endpoints:
+- GET /liga/{id}
+- GET /liga?page&size&sort&nombre&idEquipo (size por defecto 1000)
+- POST /liga
+- PUT /liga
+- DELETE /liga/{id}
+- POST /liga/fill/{cantidad}
+- DELETE /liga/empty
+- GET /liga/count
 
 ---
-
-#### GET /compra/count
-Cuenta el total de compras.
 
----
+## 11. Partidos
+Modelo: `id`, `rival`, `liga` (objeto), `local`, `resultado`.
 
-## 19. Cuotas
-
-### Modelo de Datos: CuotaEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| descripcion | String | Not null, Size(max=255) | Descripción de la cuota |
-| cantidad | BigDecimal | Not null | Importe de la cuota |
-| fecha | LocalDateTime | Not null, Format: yyyy-MM-dd HH:mm:ss | Fecha de vencimiento |
-| idEquipo | Long | Not null | FK: Equipo al que pertenece |
-
-### Endpoints
-
-#### GET /cuota/{id}
-Obtiene una cuota por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "descripcion": "Cuota mensual Enero 2024",
-  "cantidad": 30.00,
-  "fecha": "2024-01-31 23:59:59",
-  "idEquipo": 5
-}
-```
+Endpoints:
+- GET /partido/{id}
+- GET /partido?page&size&sort&id_liga
+- POST /partido
+- PUT /partido
+- DELETE /partido/{id}
+- POST /partido/fill/{cantidad}
+- DELETE /partido/empty
+- GET /partido/count
 
 ---
-
-#### GET /cuota
-Obtiene una página de cuotas.
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "descripcion": "Cuota mensual Enero 2024",
-      "cantidad": 30.00,
-      "fecha": "2024-01-31 23:59:59",
-      "idEquipo": 5
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
 
----
+## 12. Noticias
+Modelo: `id`, `titulo`, `contenido`, `fecha`, `imagen`, `club` (objeto), contadores `comentarios`, `puntuaciones`.
 
-#### POST /cuota
-Crea una nueva cuota.
-
-**Request Body:**
-```json
-{
-  "descripcion": "Cuota mensual Febrero 2024",
-  "cantidad": 30.00,
-  "fecha": "2024-02-29 23:59:59",
-  "idEquipo": 5
-}
-```
+Endpoints:
+- GET /noticia/{id}
+- GET /noticia?page&size&sort&contenido&idClub (size por defecto 1000)
+- POST /noticia
+- PUT /noticia
+- DELETE /noticia/{id}
+- POST /noticia/fill/{cantidad}
+- DELETE /noticia/empty
+- GET /noticia/count
 
 ---
-
-#### PUT /cuota
-Actualiza una cuota existente.
 
----
+## 13. Comentarios
+Modelo: `id`, `contenido`, `noticia` (objeto), `usuario` (objeto).
 
-#### DELETE /cuota/{id}
-Elimina una cuota.
+Endpoints:
+- GET /comentario/{id}
+- GET /comentario?page&size&sort&contenido&idUsuario&idNoticia (size por defecto 1000)
+- POST /comentario
+- PUT /comentario
+- DELETE /comentario/{id}
+- POST /comentario/fill/{cantidad}
+- DELETE /comentario/empty
+- GET /comentario/count
 
 ---
-
-#### GET /cuota/fill/{cantidad}
-Genera cuotas aleatorias.
 
----
+## 14. Comentarios de Artículos
+Modelo: `id`, `contenido`, `articulo` (objeto), `usuario` (objeto).
 
-#### DELETE /cuota/empty
-Vacía todas las cuotas.
+Endpoints:
+- GET /comentarioart/{id}
+- GET /comentarioart?page&size&sort&contenido&id_articulo&id_usuario (size por defecto 1000)
+- POST /comentarioart
+- PUT /comentarioart
+- DELETE /comentarioart/{id}
+- POST /comentarioart/fill/{cantidad}
+- DELETE /comentarioart/empty
+- GET /comentarioart/count
 
 ---
-
-#### GET /cuota/count
-Cuenta el total de cuotas.
 
----
+## 15. Puntuaciones
+Modelo: `id`, `puntuacion` (1-5), `noticia` (objeto), `usuario` (objeto).
 
-## 20. Pagos
-
-### Modelo de Datos: PagoEntity
-
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---------------|-------------|
-| id | Long | Auto-generado | Identificador único |
-| idCuota | Long | Not null | FK: Cuota pagada |
-| idJugador | Long | Not null | FK: Jugador que paga |
-| abonado | Integer | Not null | Estado del pago (0: pendiente, 1: pagado) |
-| fecha | LocalDateTime | Not null, Format: yyyy-MM-dd HH:mm:ss | Fecha del pago |
-
-### Endpoints
-
-#### GET /pago/{id}
-Obtiene un pago por su ID.
-
-**Response 200:**
-```json
-{
-  "id": 1,
-  "idCuota": 8,
-  "idJugador": 12,
-  "abonado": 1,
-  "fecha": "2024-01-10 10:30:00"
-}
-```
+Endpoints:
+- GET /puntuacion/{id}
+- GET /puntuacion?page&size&sort&id_noticia&id_usuario (size por defecto 1000)
+- POST /puntuacion
+- PUT /puntuacion
+- DELETE /puntuacion/{id}
+- POST /puntuacion/fill/{cantidad}
+- DELETE /puntuacion/empty
+- GET /puntuacion/count
 
 ---
 
-#### GET /pago
-Obtiene una página de pagos.
-
-**Response 200:**
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "idCuota": 8,
-      "idJugador": 12,
-      "abonado": 1,
-      "fecha": "2024-01-10 10:30:00"
-    }
-  ],
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
----
+## 16. Artículos
+Modelo: `id`, `descripcion`, `precio`, `descuento`, `imagen`, `tipoarticulo` (objeto), contadores `comentarioarts`, `compras`, `carritos`.
 
-#### POST /pago
-Registra un nuevo pago.
-
-**Request Body:**
-```json
-{
-  "idCuota": 9,
-  "idJugador": 15,
-  "abonado": 1,
-  "fecha": "2024-01-15 14:00:00"
-}
-```
+Endpoints:
+- GET /articulo/{id}
+- GET /articulo?page&size&sort&descripcion&idTipoarticulo (size por defecto 1000)
+- POST /articulo
+- PUT /articulo
+- DELETE /articulo/{id}
+- POST /articulo/fill/{cantidad}
+- GET /articulo/fill (crea 50 por defecto)
+- DELETE /articulo/empty
+- GET /articulo/count
 
 ---
 
-#### PUT /pago
-Actualiza un pago existente.
+## 17. Tipos de Artículo
+Modelo: `id`, `descripcion`, `club` (objeto), contador `articulos`.
 
----
-
-#### DELETE /pago/{id}
-Elimina un pago.
+Endpoints:
+- GET /tipoarticulo/{id}
+- GET /tipoarticulo?page&size&sort&descripcion&idClub (size por defecto 1000)
+- POST /tipoarticulo
+- PUT /tipoarticulo
+- DELETE /tipoarticulo/{id}
+- POST /tipoarticulo/fill/{cantidad}
+- DELETE /tipoarticulo/empty
+- GET /tipoarticulo/count
 
 ---
 
-#### GET /pago/fill/{cantidad}
-Genera pagos aleatorios.
-
----
+## 18. Carrito
+Modelo: `id`, `cantidad`, `articulo` (objeto), `usuario` (objeto).
 
-#### DELETE /pago/empty
-Vacía todos los pagos.
+Endpoints:
+- GET /carrito/{id}
+- GET /carrito?page&size&sort&idUsuario&idArticulo (size por defecto 1000)
+- POST /carrito
+- PUT /carrito
+- DELETE /carrito/{id}
+- POST /carrito/fill/{cantidad}
+- DELETE /carrito/empty
+- GET /carrito/count
 
 ---
 
-#### GET /pago/count
-Cuenta el total de pagos.
+## 19. Facturas
+Modelo: `id`, `fecha`, `usuario` (objeto), contador `compras`.
 
----
-
-## Diagrama de Relaciones entre Entidades
-
-```
-Club
-  ├── Usuario (presidente, vicepresidente)
-  ├── Temporada
-  ├── Tipoarticulo
-  ├── Articulo
-  └── Noticia
-
-Usuario
-  ├── Tipousuario
-  ├── Club
-  ├── Jugador
-  ├── Carrito
-  ├── Factura
-  ├── Comentario
-  └── Puntuacion
-
-Equipo
-  ├── Usuario (entrenador)
-  ├── Categoria
-  ├── Liga
-  ├── Jugador
-  └── Cuota
-
-Jugador
-  ├── Usuario
-  ├── Equipo
-  └── Pago
-
-Temporada
-  ├── Club
-  └── Categoria
-
-Categoria
-  ├── Temporada
-  └── Equipo
-
-Liga
-  ├── Equipo
-  └── Partido
-
-Partido
-  └── Liga
-
-Noticia
-  ├── Club
-  ├── Comentario
-  └── Puntuacion
-
-Articulo
-  ├── Tipoarticulo
-  ├── Club
-  ├── Carrito
-  └── Compra
-
-Factura
-  ├── Usuario
-  └── Compra
-
-Compra
-  ├── Articulo
-  └── Factura
-
-Carrito
-  ├── Usuario
-  └── Articulo
-
-Cuota
-  ├── Equipo
-  └── Pago
-
-Pago
-  ├── Cuota
-  └── Jugador
-```
+Endpoints:
+- GET /factura/{id}
+- GET /factura?page&size&sort&idUsuario (size por defecto 1000)
+- POST /factura
+- PUT /factura
+- DELETE /factura/{id}
+- POST /factura/fill/{cantidad}
+- DELETE /factura/empty
+- GET /factura/count
 
 ---
 
-## Códigos de Estado HTTP Comunes
-
-| Código | Significado | Uso |
-|--------|-------------|-----|
-| 200 | OK | Operación exitosa |
-| 201 | Created | Recurso creado exitosamente |
-| 400 | Bad Request | Datos de entrada inválidos |
-| 401 | Unauthorized | Autenticación fallida o token inválido |
-| 404 | Not Found | Recurso no encontrado |
-| 409 | Conflict | Conflicto (ej: username duplicado) |
-| 500 | Internal Server Error | Error interno del servidor |
-
----
+## 20. Compras
+Modelo: `id`, `cantidad`, `precio`, `articulo` (objeto), `factura` (objeto).
 
-## Paginación
-
-Todos los endpoints que retornan listas soportan paginación con los siguientes parámetros de query:
-
-- `page`: Número de página (comienza en 0)
-- `size`: Cantidad de elementos por página (por defecto: variable según endpoint)
-- `sort`: Campo por el cual ordenar, formato: `campo,asc` o `campo,desc`
-
-**Ejemplo:**
-```
-GET /usuario?page=0&size=20&sort=nombre,asc
-```
-
-**Respuesta:**
-```json
-{
-  "content": [...],
-  "pageable": {
-    "pageNumber": 0,
-    "pageSize": 20,
-    "sort": {
-      "sorted": true,
-      "unsorted": false
-    }
-  },
-  "totalElements": 100,
-  "totalPages": 5,
-  "last": false,
-  "first": true,
-  "numberOfElements": 20
-}
-```
+Endpoints:
+- GET /compra/{id}
+- GET /compra?page&size&sort&id_articulo&id_factura
+- POST /compra
+- PUT /compra
+- DELETE /compra/{id}
+- POST /compra/fill/{cantidad}
+- DELETE /compra/empty
+- GET /compra/count
 
 ---
 
-## Formato de Fechas
+## 21. Cuotas
+Modelo: `id`, `descripcion`, `cantidad`, `fecha`, `equipo` (objeto), contador `pagos`.
 
-Todas las fechas utilizan el formato: `yyyy-MM-dd HH:mm:ss`
+Endpoints:
+- GET /cuota/{id}
+- GET /cuota?page&size&sort&descripcion&idEquipo (size por defecto 1000)
+- POST /cuota
+- PUT /cuota
+- DELETE /cuota/{id}
+- POST /cuota/fill/{cantidad}
+- DELETE /cuota/empty
+- GET /cuota/count
 
-**Ejemplo:**
-```
-2024-01-20 14:30:00
-```
-
 ---
-
-## Notas de Implementación
 
-1. **Autenticación**: Se utiliza JWT (JSON Web Tokens) para la autenticación.
-2. **Imágenes**: Se almacenan como BLOB (byte arrays) en la base de datos.
-3. **Contraseñas**: Se almacenan hasheadas, típicamente con BCrypt.
-4. **CORS**: Configurado para aceptar peticiones desde cualquier origen durante desarrollo.
-5. **Endpoints de Testing**: Los endpoints `/fill` y `/empty` están diseñados para facilitar el testing y no deberían estar disponibles en producción.
-
----
+## 22. Pagos
+Modelo: `id`, `cuota` (objeto), `jugador` (objeto), `abonado`, `fecha`.
 
-## Ejemplos de Uso
-
-### Autenticación y Uso del Token
-
-```bash
-# 1. Login
-curl -X POST http://localhost:8089/session/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}'
-
-# Respuesta: {"token":"eyJhbGc..."}
-
-# 2. Usar el token en peticiones subsiguientes
-curl -X GET http://localhost:8089/usuario/1 \
-  -H "Authorization: Bearer eyJhbGc..."
-```
-
-### Crear un Usuario Completo
-
-```bash
-curl -X POST http://localhost:8089/usuario \
-  -H "Content-Type: application/json" \
-  -d '{
-    "nombre": "Pedro",
-    "apellido1": "Sánchez",
-    "apellido2": "Martín",
-    "username": "psanchez",
-    "password": "password123",
-    "fechaAlta": "2024-01-20 10:00:00",
-    "genero": 1,
-    "idTipousuario": 3,
-    "idClub": 1
-  }'
-```
-
-### Filtrar Artículos por Club
-
-```bash
-curl -X GET "http://localhost:8089/articulo?idClub=1&page=0&size=10"
-```
-
-### Añadir Artículo al Carrito
-
-```bash
-curl -X POST http://localhost:8089/carrito \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cantidad": 2,
-    "idArticulo": 5,
-    "idUsuario": 10
-  }'
-```
+Endpoints:
+- GET /pago/{id}
+- GET /pago?page&size&sort&idCuota&idJugador (size por defecto 1000)
+- POST /pago
+- PUT /pago
+- DELETE /pago/{id}
+- POST /pago/fill/{cantidad}
+- DELETE /pago/empty
+- GET /pago/count
 
 ---
 
-## Versión
+## Utilidades de datos
+- `POST /{recurso}/fill/{cantidad}`: rellena con datos aleatorios (cuando aplica, `GET /articulo/fill` crea 50 por defecto).
+- `DELETE /{recurso}/empty`: elimina todos los registros del recurso.
+- `GET /{recurso}/count`: devuelve el total de registros.
 
-**Versión de la API**: 1.0  
-**Última actualización**: Enero 2024  
-**Framework**: Spring Boot  
-**Base de datos**: MySQL
+Esta guía refleja el código actual en `src/main/java/net/ausiasmarch/gesportin/api` y las entidades de `src/main/java/net/ausiasmarch/gesportin/entity` con claves ajenas expandidas y contadores en colecciones.

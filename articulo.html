@@ -211,7 +211,7 @@
     </div>
 
     <script>
-      const baseUrl = "http://127.0.0.1:8089/articulo";
+      const baseUrl = "http://localhost:8089/articulo";
       const logEl = document.getElementById("log");
 
       function log(...args) {
@@ -242,9 +242,9 @@
       }
 
       document.getElementById("btnFill").addEventListener("click", async () => {
-        log("Iniciando fill/50 (artículos predeterminados)...");
+        log("Iniciando fill (artículos predeterminados, 50 por defecto)...");
         try {
-          const result = await api("/fill/50", { method: "POST" });
+          const result = await api("/fill", { method: "GET" });
           log("fill response:", result);
           const count = await api("/count", { method: "GET" });
           log("count after fill:", count);

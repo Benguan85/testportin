@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Pruebas API Factura</title>
+    <title>Pruebas API Rol Usuario</title>
     <style>
       :root {
         --bg: #f7f9fc;
@@ -100,93 +100,96 @@
   <body>
     <div class="wrap">
       <header>
-        <h1>Pruebas de la API: /factura</h1>
+        <h1>Pruebas de la API: /rolusuario</h1>
         <div class="muted">
-          Este fichero realiza llamadas a los endpoints de Factura y muestra
+          Este fichero realiza llamadas a los endpoints de Rol de Usuario y muestra
           comprobaciones básicas.
         </div>
       </header>
 
       <div class="grid">
         <div class="card">
-          <label>Fill 20</label>
-          <div class="muted">
-            Vacía la tabla y comprueba que count == 0 Llena 20 registros y luego comprueba que count == 20
-          </div>
-          <div style="margin-top: 8px">
-            <button id="btnFill20">Fill 20</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <label>Empty</label>
-          <div class="muted">Elimina todos los registros de la tabla</div>
-          <div style="margin-top: 8px">
-            <button id="btnEmpty">Empty</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <label>Fill 100</label>
-          <div class="muted">
-            Vacía la tabla y comprueba que count == 0 Llena 100 registros y luego comprueba que count == 100
-          </div>
-          <div style="margin-top: 8px">
-            <button id="btnFill100">Fill 100</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <label>Get count</label>
-          <div class="muted">Devuelve el número total de registros</div>
-          <div style="margin-top: 8px">
-            <button id="btnGetCount">Get count</button>
+          <div class="row">
+            <div style="flex: 1">
+              <label>Fill (roles predeterminados)</label>
+              <div class="muted">
+                Rellena la tabla con roles de usuario predeterminados (Admin, Jugador, Entrenador, etc.)
+              </div>
+            </div>
+            <div><button id="btnFill">Fill</button></div>
           </div>
         </div>
 
         <div class="card">
           <div class="row">
             <div style="flex: 1">
-              <label>Get by id</label>
-              <div class="muted">Obtiene una factura por su ID</div>
+              <label>Empty</label>
+              <div class="muted">Vacía la tabla y comprueba que count == 0</div>
             </div>
-            <div>
-              <input
-                id="inputGetId"
-                type="number"
-                placeholder="id a obtener (ej. 1)"
-              />
-              <div style="margin-top: 8px">
-                <button id="btnGet">Get(id)</button>
-              </div>
-            </div>
+            <div><button id="btnEmpty" class="secondary">Empty</button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <label>Get by id</label>
+          <input
+            id="inputGetId"
+            type="number"
+            placeholder="id a obtener (ej. 1)"
+          />
+          <div style="margin-top: 8px" class="row">
+            <button id="btnGet">Get(id) y comprobar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <label>Get all (sin paginación)</label>
+          <div class="muted">
+            Obtiene todos los roles de usuario disponibles usando /rolusuario/all
+          </div>
+          <div style="margin-top: 8px">
+            <button id="btnGetAll">Get all rolusuario</button>
           </div>
         </div>
 
         <div class="card">
           <label>Get page</label>
           <div class="muted">
-            Obtener una página de facturas: size=11 página=1
+            Obtener una página con filtro opcional de descripción (size por defecto 1000)
           </div>
           <div style="margin-top: 8px" class="row">
-            <input id="inputPage" type="number" value="1" min="0" />
-            <input id="inputSize" type="number" value="11" min="1" />
+            <input id="inputPage" type="number" value="0" min="0" />
+            <input id="inputSize" type="number" value="1000" min="1" />
             <button id="btnGetPage">GetPage</button>
           </div>
         </div>
 
         <div class="card">
-          <label>Create → Delete</label>
+          <label>Get count</label>
           <div class="muted">
-            Crea una factura (fecha actual automática, usa idUsuario=1 por defecto) y luego la borra. Nota: sin UPDATE pues fecha es autogenerada.
+            Cuenta el total de roles de usuario registrados
           </div>
           <div style="margin-top: 8px">
-            <label for="createIdUsuario">ID Usuario</label>
-            <input id="createIdUsuario" type="number" value="1" />
+            <button id="btnCount">Get count</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <label>Create → Update → Delete</label>
+          <div class="muted">
+            Crea un rol de usuario, lo actualiza y luego lo borra.
           </div>
           <div style="margin-top: 8px">
-            <button id="btnCreateDelete">
-              Ejecutar crear y eliminar
+            <label for="createDescripcion">Descripción</label>
+            <input
+              id="createDescripcion"
+              placeholder="Descripción inicial"
+              value="Rol Prueba"
+            />
+          </div>
+          <div style="margin-top: 8px">
+            <button id="btnCreateUpdateDelete">
+              Ejecutar proceso completo
             </button>
           </div>
         </div>
@@ -198,12 +201,14 @@
       </section>
 
       <p class="muted" style="margin-top: 12px">
-        Notas: Asume que el backend está disponible en <code>http://localhost:8089/factura</code>. Para <strong>create</strong> se requiere idUsuario — si ese FK no existe, la creación fallará. La fecha se genera automáticamente en el servidor.
+        Notas: Asume que el backend está disponible en <code>http://localhost:8089/rolusuario</code>. 
+        Este endpoint tiene campo descripción (id autogenerado). Ofrece paginación con size por defecto 1000 
+        y también endpoint /all para obtener todos sin paginación.
       </p>
     </div>
 
     <script>
-      const baseUrl = "http://localhost:8089/factura";
+      const baseUrl = "http://localhost:8089/rolusuario";
       const logEl = document.getElementById("log");
 
       function log(...args) {
@@ -233,55 +238,31 @@
         return data;
       }
 
-      document.getElementById("btnFill20").addEventListener("click", async () => {
-        log("POST /factura/fill/20");
+      document.getElementById("btnFill").addEventListener("click", async () => {
+        log("Iniciando fill (carga roles predeterminados)...");
         try {
-          const data = await api("/fill/20", { method: "POST" });
-          log("Fill/20 result:", data);
+          const result = await api("/fill", { method: "POST" });
+          log("fill response:", result);
           const count = await api("/count", { method: "GET" });
-          log("Count after fill:", count);
-          if (count === 20) log("OK: count == 20");
-          else log("FALLO: count != 20");
+          log("count after fill:", count);
+          if (count > 0) log("OK: se crearon roles de usuario predeterminados");
+          else log("FALLO: no se crearon roles");
         } catch (e) {
-          log("Error en fill/20:", e);
+          log("Error en fill:", e);
         }
       });
 
       document.getElementById("btnEmpty").addEventListener("click", async () => {
-        log("DELETE /factura/all");
+        log("Iniciando empty...");
         try {
-          const data = await api("/all", { method: "DELETE" });
-          log("Empty result:", data);
+          const emptied = await api("/empty", { method: "DELETE" });
+          log("empty response:", emptied);
           const count = await api("/count", { method: "GET" });
-          log("Count after empty:", count);
-          if (count === 0) log("OK: count == 0 (tabla vacía)");
-          else log("FALLO: count != 0");
+          log("count after empty:", count);
+          if (count === 0) log("OK: count == 0");
+          else log("FALLO: count != 0 (valor actual: " + count + ")");
         } catch (e) {
           log("Error en empty:", e);
-        }
-      });
-
-      document.getElementById("btnFill100").addEventListener("click", async () => {
-        log("POST /factura/fill/100");
-        try {
-          const data = await api("/fill/100", { method: "POST" });
-          log("Fill/100 result:", data);
-          const count = await api("/count", { method: "GET" });
-          log("Count after fill:", count);
-          if (count === 100) log("OK: count == 100");
-          else log("FALLO: count != 100");
-        } catch (e) {
-          log("Error en fill/100:", e);
-        }
-      });
-
-      document.getElementById("btnGetCount").addEventListener("click", async () => {
-        log("GET /factura/count");
-        try {
-          const count = await api("/count", { method: "GET" });
-          log("Count result:", count);
-        } catch (e) {
-          log("Error en count:", e);
         }
       });
 
@@ -292,7 +273,7 @@
           log("Introduce un id válido (> 0)");
           return;
         }
-        log("GET /factura/" + id);
+        log("GET /rolusuario/" + id);
         try {
           const data = await api("/" + id, { method: "GET" });
           log("GET result:", data);
@@ -303,9 +284,24 @@
         }
       });
 
+      document.getElementById("btnGetAll").addEventListener("click", async () => {
+        log("GET /rolusuario/all");
+        try {
+          const data = await api("/all", { method: "GET" });
+          log("GET all result:", data);
+          if (Array.isArray(data)) {
+            log("OK: se devolvió un array con " + data.length + " roles de usuario");
+          } else {
+            log("Respuesta:", data);
+          }
+        } catch (e) {
+          log("Error en GET all:", e);
+        }
+      });
+
       document.getElementById("btnGetPage").addEventListener("click", async () => {
-        const page = Number(document.getElementById("inputPage").value || 1);
-        const size = Number(document.getElementById("inputSize").value || 11);
+        const page = Number(document.getElementById("inputPage").value || 0);
+        const size = Number(document.getElementById("inputSize").value || 1000);
         log(`GET page=${page} size=${size}`);
         try {
           const data = await api(`?page=${page}&size=${size}`, { method: "GET" });
@@ -327,12 +323,24 @@
         }
       });
 
-      document.getElementById("btnCreateDelete").addEventListener("click", async () => {
+      document.getElementById("btnCount").addEventListener("click", async () => {
+        log("GET /rolusuario/count");
         try {
-          const idUsuario = Number(document.getElementById("createIdUsuario").value || 1);
+          const count = await api("/count", { method: "GET" });
+          log("count result:", count);
+          if (typeof count === "number") log("OK: total de roles = " + count);
+          else log("Respuesta:", count);
+        } catch (e) {
+          log("Error en count:", e);
+        }
+      });
 
-          log('Iniciando CREATE (POST /factura) con idUsuario=' + idUsuario);
-          const createPayload = { idUsuario };
+      document.getElementById("btnCreateUpdateDelete").addEventListener("click", async () => {
+        try {
+          const descripcion = (document.getElementById("createDescripcion").value || "Rol Prueba").trim();
+
+          log('Iniciando CREATE (POST /rolusuario) con descripcion="' + descripcion + '"');
+          const createPayload = { descripcion };
           const created = await api("", {
             method: "POST",
             body: JSON.stringify(createPayload),
@@ -346,8 +354,19 @@
           const newId = created.id;
           log("OK: creado id=" + newId);
 
+          const updatedPayload = Object.assign({}, created, { descripcion: descripcion + " - UPDATED" });
+          log("Executing UPDATE for id=" + newId);
+          const updated = await api("", {
+            method: "PUT",
+            body: JSON.stringify(updatedPayload),
+          });
+          log("UPDATE result:", updated);
+
           const after = await api("/" + newId, { method: "GET" });
-          log("GET after create:", after);
+          log("GET after update:", after);
+
+          if (after && after.descripcion === updatedPayload.descripcion) log("OK: descripción actualizada correctamente");
+          else log("FALLO: descripción no actualizada");
 
           log("Deleting id=" + newId);
           const del = await api("/" + newId, { method: "DELETE" });
@@ -361,7 +380,7 @@
             else log("Respuesta al comprobar delete (no 404):", err);
           }
         } catch (e) {
-          log("Error en proceso Create/Delete:", e);
+          log("Error en proceso Create/Update/Delete:", e);
         }
       });
     </script>

@@ -179,6 +179,10 @@
           <span>⭐ Puntuación</span>
           <span class="count" id="count-puntuacion">-</span>
         </a>
+        <a href="rolusuario.html">
+          <span>🎭 Rol Usuario</span>
+          <span class="count" id="count-rolusuario">-</span>
+        </a>
         <a href="temporada.html">
           <span>📅 Temporada</span>
           <span class="count" id="count-temporada">-</span>
@@ -206,10 +210,10 @@
       const endpoints = [
         "articulo", "carrito", "categoria", "club", "comentario", "comentarioart", "compra", 
         "cuota", "equipo", "factura", "jugador", "liga", "noticia", "pago", 
-        "partido", "puntuacion", "temporada", "tipoarticulo", "tipousuario", "usuario"
+        "partido", "puntuacion", "rolusuario", "temporada", "tipoarticulo", "tipousuario", "usuario"
       ];
 
-      const baseUrl = "http://127.0.0.1:8089";
+      const baseUrl = "http://localhost:8089";
 
       async function fetchCount(endpoint) {
         try {
